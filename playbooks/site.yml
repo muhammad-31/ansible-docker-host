@@ -1,0 +1,21 @@
+---
+# Full server build: base -> hardening -> Docker -> app -> Nginx -> backups.
+# ansible-playbook playbooks/site.yml -i inventories/<env>/hosts.yml
+- name: Configure Docker hosts
+  hosts: docker_hosts
+  become: true
+  force_handlers: true
+  roles:
+    - role: base
+      tags: [base]
+    - role: hardening
+      tags: [hardening]
+    - role: docker
+      tags: [docker]
+    - role: app
+      tags: [app]
+    - role: reverse_proxy
+      tags: [proxy]
+    - role: backups
+      tags: [backups]
+      when: backups_enabled | bool

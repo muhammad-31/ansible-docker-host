@@ -1,0 +1,23 @@
+---
+base_timezone: Etc/UTC
+base_swap_size_mb: 1024
+
+hardening_admin_user: deploy
+hardening_admin_ssh_keys:
+  - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIExampleOnlyReplaceWithYourOwnKey000000000 you@laptop"
+
+docker_users: []
+
+app_name: podinfo
+app_env:
+  PODINFO_UI_MESSAGE: "hello from {{ inventory_hostname }}"
+
+reverse_proxy_sites:
+  - name: podinfo
+    server_names: [app.example.com]
+    upstream: http://127.0.0.1:9898
+reverse_proxy_letsencrypt_email: ops@example.com
+
+backups_restic_repository: "s3:https://s3.amazonaws.com/example-backups/{{ inventory_hostname }}"
+# ansible-vault encrypt_string --name backups_restic_password
+backups_restic_password: "{{ vault_backups_restic_password }}"

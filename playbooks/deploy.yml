@@ -1,0 +1,9 @@
+---
+# Application release only (new image tag, env change): fast, no system changes.
+# ansible-playbook playbooks/deploy.yml -e app_image=ghcr.io/acme/shop:1.4.2
+- name: Deploy the application
+  hosts: docker_hosts
+  become: true
+  force_handlers: true
+  roles:
+    - role: app
