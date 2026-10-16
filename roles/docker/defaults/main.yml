@@ -1,0 +1,15 @@
+---
+# docker-ce: Docker's own apt repository (latest Engine, Compose and Buildx).
+# distro:    Ubuntu's docker.io packages (older, but no third-party repository).
+docker_install_source: docker-ce
+docker_ce_channel: stable
+
+# Container logs are rotated, so a chatty container cannot fill the disk.
+docker_log_max_size: 10m
+docker_log_max_file: 3
+
+# Extra keys merged into /etc/docker/daemon.json.
+docker_daemon_options: {}
+
+# Users added to the docker group. Membership is root-equivalent; keep it short.
+docker_users: []

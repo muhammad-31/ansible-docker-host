@@ -1,0 +1,26 @@
+---
+docker_arch_map:
+  x86_64: amd64
+  aarch64: arm64
+
+docker_packages:
+  docker-ce:
+    - docker-ce
+    - docker-ce-cli
+    - containerd.io
+    - docker-buildx-plugin
+    - docker-compose-plugin
+  distro:
+    - docker.io
+    - docker-compose-v2
+    - docker-buildx
+
+docker_daemon_defaults:
+  log-driver: json-file
+  log-opts:
+    max-size: "{{ docker_log_max_size }}"
+    max-file: "{{ docker_log_max_file | string }}"
+  # Containers keep running while dockerd restarts (e.g. during upgrades).
+  live-restore: true
+  # Containers cannot gain new privileges through setuid binaries.
+  no-new-privileges: true

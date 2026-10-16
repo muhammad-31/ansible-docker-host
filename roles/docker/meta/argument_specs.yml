@@ -1,0 +1,25 @@
+---
+argument_specs:
+  main:
+    short_description: Install and configure Docker Engine
+    options:
+      docker_install_source:
+        type: str
+        choices: [docker-ce, distro]
+        description: Install from Docker's repository or Ubuntu's packages.
+      docker_ce_channel:
+        type: str
+        description: Docker repository channel.
+      docker_log_max_size:
+        type: str
+        description: Max size of one container log file.
+      docker_log_max_file:
+        type: int
+        description: Number of rotated log files kept per container.
+      docker_daemon_options:
+        type: dict
+        description: Extra daemon.json settings.
+      docker_users:
+        type: list
+        elements: str
+        description: Users added to the docker group.

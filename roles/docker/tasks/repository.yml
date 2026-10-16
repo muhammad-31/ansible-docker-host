@@ -1,0 +1,16 @@
+---
+- name: Remove conflicting distribution packages
+  ansible.builtin.apt:
+    name: [docker.io, docker-compose, docker-compose-v2, podman-docker, containerd, runc]
+    state: absent
+
+- name: Add Docker's apt repository (signed by Docker's key)
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: https://download.docker.com/linux/ubuntu
+    suites: ["{{ ansible_facts['distribution_release'] }}"]
+    components: ["{{ docker_ce_channel }}"]
+    architectures: ["{{ docker_arch_map[ansible_facts['architecture']] }}"]
+    signed_by: https://download.docker.com/linux/ubuntu/gpg
+    state: present

@@ -1,0 +1,46 @@
+---
+- name: Check the install source
+  ansible.builtin.assert:
+    that: docker_install_source in ['docker-ce', 'distro']
+    fail_msg: docker_install_source must be docker-ce or distro.
+    quiet: true
+
+- name: Add Docker's apt repository
+  ansible.builtin.include_tasks: repository.yml
+  when: docker_install_source == 'docker-ce'
+
+- name: Install Docker Engine, Compose and Buildx
+  ansible.builtin.apt:
+    name: "{{ docker_packages[docker_install_source] }}"
+    state: present
+    update_cache: true
+
+- name: Create /etc/docker
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure the Docker daemon
+  ansible.builtin.copy:
+    content: "{{ docker_daemon_defaults | combine(docker_daemon_options, recursive=true) | to_nice_json }}\n"
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart docker
+
+- name: Keep Docker running
+  ansible.builtin.systemd_service:
+    name: docker
+    state: started
+    enabled: true
+
+- name: Add users to the docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: [docker]
+    append: true
+  loop: "{{ docker_users }}"
