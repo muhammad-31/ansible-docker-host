@@ -38,7 +38,7 @@ jobs:
         run: yamllint --format github .
 
       - name: ansible-lint
-        run: ansible-lint --format github
+        run: ansible-lint  # annotates pull requests automatically on GitHub Actions
 
       - name: Syntax check
         run: |
