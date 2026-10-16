@@ -8,3 +8,12 @@ proxy_set_header Upgrade $http_upgrade;
 proxy_set_header Connection $connection_upgrade;
 proxy_connect_timeout 5s;
 proxy_read_timeout 60s;
+
+# Nginx sets these for every site (snippets/security-headers.conf); drop any
+# copies from the app so clients never receive duplicate, conflicting values.
+proxy_hide_header Strict-Transport-Security;
+proxy_hide_header X-Content-Type-Options;
+proxy_hide_header X-Frame-Options;
+proxy_hide_header Referrer-Policy;
+proxy_hide_header Permissions-Policy;
+proxy_hide_header X-Powered-By;

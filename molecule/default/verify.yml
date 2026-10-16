@@ -111,6 +111,10 @@
           - "'deployed with Ansible' in verify_https.content"
           - verify_https.strict_transport_security is defined
           - verify_https.x_content_type_options == 'nosniff'
+        fail_msg: >-
+          Unexpected response. HSTS={{ verify_https.strict_transport_security | default('missing') }},
+          X-Content-Type-Options={{ verify_https.x_content_type_options | default('missing') }},
+          body starts with {{ verify_https.content[:200] }}
       when: verify_app | bool
 
     # ------------------------------------------------------------ backups
