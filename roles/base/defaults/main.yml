@@ -1,0 +1,25 @@
+---
+# Packages every server gets.
+base_packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - htop
+  - jq
+  - unzip
+  - rsync
+  - chrony
+  - unattended-upgrades
+  - apt-listchanges
+base_timezone: Etc/UTC
+
+# Security updates are installed automatically every night.
+base_unattended_upgrades_reboot: false
+base_unattended_upgrades_reboot_time: "04:00"
+
+# 0 = no swap file. Small VPSs (1-2 GB RAM) benefit from 1-2 GB of swap.
+base_swap_size_mb: 0
+base_swappiness: 10
+
+# Cap the systemd journal so logs never fill the disk.
+base_journald_max_use: 500M

@@ -1,0 +1,27 @@
+---
+argument_specs:
+  main:
+    short_description: Baseline configuration for an Ubuntu server
+    options:
+      base_packages:
+        type: list
+        elements: str
+        description: Packages installed on every host.
+      base_timezone:
+        type: str
+        description: System timezone.
+      base_unattended_upgrades_reboot:
+        type: bool
+        description: Reboot automatically when an update requires it.
+      base_unattended_upgrades_reboot_time:
+        type: str
+        description: Time of day for automatic reboots (HH:MM).
+      base_swap_size_mb:
+        type: int
+        description: Size of /swapfile in MiB; 0 disables swap.
+      base_swappiness:
+        type: int
+        description: vm.swappiness when swap is enabled.
+      base_journald_max_use:
+        type: str
+        description: Maximum disk space for the systemd journal.

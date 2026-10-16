@@ -1,0 +1,7 @@
+.collections/
+*.retry
+.vault-password
+__pycache__/
+.DS_Store
+.idea/
+.vscode/
