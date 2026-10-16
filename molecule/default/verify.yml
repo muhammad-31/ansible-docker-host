@@ -1,0 +1,137 @@
+---
+- name: Verify the server
+  hosts: docker_hosts
+  become: true
+  gather_facts: false
+  tasks:
+    # ---------------------------------------------------------------- SSH
+    - name: Read the effective sshd configuration
+      ansible.builtin.command: sshd -T
+      register: verify_sshd
+      changed_when: false
+
+    - name: SSH allows keys only, no root, named users only
+      ansible.builtin.assert:
+        that:
+          - "'permitrootlogin no' in verify_sshd.stdout_lines"
+          - "'passwordauthentication no' in verify_sshd.stdout_lines"
+          - "'kbdinteractiveauthentication no' in verify_sshd.stdout_lines"
+          - "'allowusers deploy' in verify_sshd.stdout_lines"
+          - "'maxauthtries 3' in verify_sshd.stdout_lines"
+
+    - name: The admin user has exactly the configured key
+      ansible.builtin.command: cat /home/deploy/.ssh/authorized_keys
+      register: verify_keys
+      changed_when: false
+
+    - name: Check authorized_keys
+      ansible.builtin.assert:
+        that: verify_keys.stdout_lines | select('match', '^ssh-') | list | length == 1
+
+    # ----------------------------------------------------------- firewall
+    - name: Read the firewall status
+      ansible.builtin.command: ufw status verbose
+      register: verify_ufw
+      changed_when: false
+      when: hardening_firewall_enabled | bool
+
+    - name: Firewall denies by default and only opens SSH, 80, 443
+      ansible.builtin.assert:
+        that:
+          - "'Status: active' in verify_ufw.stdout"
+          - "'deny (incoming)' in verify_ufw.stdout"
+          - verify_ufw.stdout is search('22/tcp\\s+LIMIT IN')
+          - verify_ufw.stdout is search('80/tcp\\s+ALLOW IN')
+          - verify_ufw.stdout is search('443/tcp\\s+ALLOW IN')
+      when: hardening_firewall_enabled | bool
+
+    - name: Fail2ban protects SSH
+      ansible.builtin.command: fail2ban-client status sshd
+      changed_when: false
+
+    # ------------------------------------------------------------- Docker
+    - name: Read the Docker daemon settings
+      ansible.builtin.command: docker info --format '{{ "{{" }} json . {{ "}}" }}'
+      register: verify_docker
+      changed_when: false
+
+    - name: Docker rotates logs and keeps containers running during restarts
+      ansible.builtin.assert:
+        that:
+          - (verify_docker.stdout | from_json).LoggingDriver == 'json-file'
+          - (verify_docker.stdout | from_json).LiveRestoreEnabled
+
+    - name: Docker Compose v2 is installed
+      ansible.builtin.command: docker compose version --short
+      changed_when: false
+
+    # ---------------------------------------------------------- app + TLS
+    - name: The app container is healthy and only bound to localhost
+      ansible.builtin.command: >-
+        docker inspect podinfo-web-1
+        --format '{{ "{{" }} .State.Health.Status {{ "}}" }} {{ "{{" }} json .HostConfig.PortBindings {{ "}}" }}'
+      register: verify_container
+      changed_when: false
+      until: verify_container.stdout is search('^healthy')
+      retries: 20
+      delay: 3
+      when: verify_app | bool
+
+    - name: Check the port binding
+      ansible.builtin.assert:
+        that: "'\"HostIp\":\"127.0.0.1\"' in verify_container.stdout"
+      when: verify_app | bool
+
+    - name: HTTP redirects to HTTPS
+      ansible.builtin.uri:
+        url: http://127.0.0.1/
+        headers:
+          Host: podinfo.test
+        follow_redirects: none
+        status_code: 301
+      register: verify_redirect
+
+    - name: Check the redirect target
+      ansible.builtin.assert:
+        that: verify_redirect.location == 'https://podinfo.test/'
+
+    - name: HTTPS serves the app with security headers
+      ansible.builtin.uri:
+        url: https://127.0.0.1/
+        headers:
+          Host: podinfo.test
+        validate_certs: false
+        return_content: true
+      register: verify_https
+      when: verify_app | bool
+
+    - name: Check the HTTPS response
+      ansible.builtin.assert:
+        that:
+          - "'deployed with Ansible' in verify_https.content"
+          - verify_https.strict_transport_security is defined
+          - verify_https.x_content_type_options == 'nosniff'
+      when: verify_app | bool
+
+    # ------------------------------------------------------------ backups
+    - name: The backup timer is scheduled
+      ansible.builtin.command: systemctl is-enabled restic-backup.timer  # noqa: command-instead-of-module (read-only check)
+      changed_when: false
+
+    - name: Run a backup now
+      ansible.builtin.systemd_service:
+        name: restic-backup.service
+        state: started
+
+    - name: List snapshots
+      ansible.builtin.shell: |
+        set -a; . /etc/restic/restic.env; set +a
+        restic snapshots --json
+      args:
+        executable: /bin/bash
+      register: verify_snapshots
+      changed_when: false
+
+    - name: A snapshot exists
+      ansible.builtin.assert:
+        that: verify_snapshots.stdout | from_json | length >= 1

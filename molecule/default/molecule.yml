@@ -1,0 +1,71 @@
+---
+# Builds a real server in a privileged systemd container, runs the full
+# playbooks/site.yml against it twice (the second run must change nothing),
+# then checks the result from the inside. CI runs this on every pull request.
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+
+driver:
+  name: docker
+
+platforms:
+  - name: docker-host
+    image: "${MOLECULE_IMAGE:-geerlingguy/docker-ubuntu2404-ansible:latest}"
+    pre_build_image: true
+    privileged: true
+    cgroupns_mode: host
+    command: ""
+    tmpfs:
+      - /run
+      - /tmp
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+      # Docker inside the container needs non-overlay filesystems for its
+      # data and for containerd's image store.
+      - /var/lib/docker
+      - /var/lib/containerd
+    network_mode: "${MOLECULE_NETWORK:-bridge}"
+    groups:
+      - docker_hosts
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: ../../playbooks/site.yml
+    verify: verify.yml
+  env:
+    ANSIBLE_ROLES_PATH: ../../roles
+  inventory:
+    group_vars:
+      docker_hosts:
+        hardening_admin_ssh_keys:
+          - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMoleculeTestKeyNotARealKey0000000000000 molecule"
+        hardening_firewall_enabled: "${MOLECULE_FIREWALL:-true}"
+        hardening_sysctl_enabled: "${MOLECULE_SYSCTL:-true}"
+        docker_install_source: "${MOLECULE_DOCKER_SOURCE:-docker-ce}"
+        base_swap_size_mb: 0
+        reverse_proxy_letsencrypt_enabled: false
+        reverse_proxy_sites:
+          - name: podinfo
+            server_names: [podinfo.test]
+            upstream: http://127.0.0.1:9898
+        backups_restic_repository: /var/backups/restic
+        backups_restic_password: molecule-only-password-not-a-secret
+        backups_paths: [/opt, /etc/nginx]
+        verify_app: "${MOLECULE_APP:-true}"
+
+verifier:
+  name: ansible
+
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy
