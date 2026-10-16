@@ -1,0 +1,43 @@
+---
+argument_specs:
+  main:
+    short_description: Nightly restic backups
+    options:
+      backups_enabled:
+        type: bool
+        description: Whether site.yml applies this role.
+      backups_restic_repository:
+        type: str
+        required: true
+        description: restic repository URL.
+      backups_restic_password:
+        type: str
+        required: true
+        no_log: true
+        description: Repository encryption password.
+      backups_env:
+        type: dict
+        description: Extra environment variables for restic (credentials).
+      backups_paths:
+        type: list
+        elements: str
+        description: Paths to back up.
+      backups_exclude:
+        type: list
+        elements: str
+        description: Exclude patterns.
+      backups_pre_command:
+        type: str
+        description: Shell command run before each backup.
+      backups_schedule:
+        type: str
+        description: systemd OnCalendar expression.
+      backups_keep_daily:
+        type: int
+        description: Daily snapshots kept.
+      backups_keep_weekly:
+        type: int
+        description: Weekly snapshots kept.
+      backups_keep_monthly:
+        type: int
+        description: Monthly snapshots kept.

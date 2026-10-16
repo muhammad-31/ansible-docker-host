@@ -1,0 +1,59 @@
+---
+- name: Check backup settings
+  ansible.builtin.assert:
+    that:
+      - backups_restic_repository | length > 0
+      - backups_restic_password | length >= 16
+    fail_msg: Set backups_restic_repository and a backups_restic_password of at least 16 characters (use ansible-vault).
+    quiet: true
+
+- name: Install restic
+  ansible.builtin.apt:
+    name: restic
+    state: present
+
+- name: Create /etc/restic
+  ansible.builtin.file:
+    path: /etc/restic
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Write repository credentials
+  ansible.builtin.template:
+    src: restic.env.j2
+    dest: /etc/restic/restic.env
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Install the backup script
+  ansible.builtin.template:
+    src: restic-backup.sh.j2
+    dest: /usr/local/sbin/restic-backup
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Install the systemd service and timer
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/systemd/system/{{ item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - restic-backup.service
+    - restic-backup.timer
+  notify: Reload systemd
+
+- name: Apply systemd changes before enabling the timer
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable the nightly backup timer
+  ansible.builtin.systemd_service:
+    name: restic-backup.timer
+    state: started
+    enabled: true

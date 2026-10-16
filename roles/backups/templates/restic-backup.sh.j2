@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# {{ ansible_managed }}
+# Back up {{ backups_paths | join(', ') }} with restic, then apply retention.
+set -euo pipefail
+
+set -a
+# shellcheck disable=SC1091
+source /etc/restic/restic.env
+set +a
+
+# First run: create the repository.
+if ! restic cat config >/dev/null 2>&1; then
+  echo "Initialising restic repository"
+  restic init
+fi
+
+{% if backups_pre_command | length > 0 %}
+echo "Running pre-backup command"
+{{ backups_pre_command }}
+{% endif %}
+
+restic backup \
+  --tag scheduled \
+  --exclude-caches \
+{% for pattern in backups_exclude %}
+  --exclude '{{ pattern }}' \
+{% endfor %}
+  {{ backups_paths | map('quote') | join(' ') }}
+
+restic forget --prune \
+  --keep-daily {{ backups_keep_daily }} \
+  --keep-weekly {{ backups_keep_weekly }} \
+  --keep-monthly {{ backups_keep_monthly }}
+
+# Verify repository structure; reading 5% of the data catches silent corruption over time.
+restic check --read-data-subset=5%

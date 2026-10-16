@@ -1,0 +1,26 @@
+---
+# Encrypted, deduplicated backups with restic, run nightly by a systemd timer.
+backups_enabled: true
+
+# e.g. s3:https://s3.amazonaws.com/acme-backups/{{ inventory_hostname }}
+backups_restic_repository: ""
+# Encryption password for the repository. Keep it in ansible-vault and in a
+# password manager: without it the backups cannot be restored.
+backups_restic_password: ""
+# Extra environment for restic, e.g. AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+# (prefer an instance role on EC2).
+backups_env: {}
+
+backups_paths:
+  - /opt
+  - /etc
+backups_exclude:
+  - "*.tmp"
+# Runs before the backup, e.g. a database dump into a path that is backed up:
+# docker compose -f /opt/app/compose.yaml exec -T db pg_dumpall -U postgres > /opt/app/backup/db.sql
+backups_pre_command: ""
+
+backups_schedule: "*-*-* 02:30:00"
+backups_keep_daily: 7
+backups_keep_weekly: 4
+backups_keep_monthly: 6
