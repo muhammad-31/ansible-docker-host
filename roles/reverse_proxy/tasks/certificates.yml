@@ -1,0 +1,74 @@
+---
+# Runs once per site (loop_var: reverse_proxy_site).
+- name: Certificate paths for {{ reverse_proxy_site.name }}
+  ansible.builtin.set_fact:
+    reverse_proxy_cert_dir: "{{ '/etc/letsencrypt/live/' ~ reverse_proxy_site.name
+      if reverse_proxy_letsencrypt_enabled | bool else '/etc/ssl/reverse-proxy/' ~ reverse_proxy_site.name }}"
+
+- name: Self-signed certificate for {{ reverse_proxy_site.name }}
+  when: not reverse_proxy_letsencrypt_enabled | bool
+  block:
+    - name: Create the certificate directory
+      ansible.builtin.file:
+        path: "{{ reverse_proxy_cert_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+
+    - name: Generate a private key
+      community.crypto.openssl_privatekey:
+        path: "{{ reverse_proxy_cert_dir }}/privkey.pem"
+        type: ECC
+        curve: secp384r1
+        mode: "0600"
+
+    - name: Generate a certificate signing request
+      community.crypto.openssl_csr_pipe:
+        privatekey_path: "{{ reverse_proxy_cert_dir }}/privkey.pem"
+        common_name: "{{ reverse_proxy_site.server_names[0] }}"
+        subject_alt_name: "{{ reverse_proxy_site.server_names | map('regex_replace', '^', 'DNS:') | list }}"
+      register: reverse_proxy_csr
+      changed_when: false
+
+    - name: Self-sign the certificate
+      community.crypto.x509_certificate:
+        path: "{{ reverse_proxy_cert_dir }}/fullchain.pem"
+        csr_content: "{{ reverse_proxy_csr.csr }}"
+        privatekey_path: "{{ reverse_proxy_cert_dir }}/privkey.pem"
+        provider: selfsigned
+        selfsigned_not_after: "+365d"
+        mode: "0644"
+
+- name: Let's Encrypt certificate for {{ reverse_proxy_site.name }}
+  when: reverse_proxy_letsencrypt_enabled | bool
+  block:
+    - name: Check for an existing certificate
+      ansible.builtin.stat:
+        path: "{{ reverse_proxy_cert_dir }}/fullchain.pem"
+      register: reverse_proxy_existing_cert
+
+    # Bootstrap: serve only the ACME challenge on port 80 until the first
+    # certificate exists, then the full HTTPS site config takes over.
+    - name: Temporary ACME-only server block
+      ansible.builtin.template:
+        src: acme-bootstrap.conf.j2
+        dest: /etc/nginx/sites-enabled/{{ reverse_proxy_site.name }}.conf
+        owner: root
+        group: root
+        mode: "0644"
+      when: not reverse_proxy_existing_cert.stat.exists
+      notify: Reload nginx
+
+    - name: Load the temporary server block before requesting the certificate
+      ansible.builtin.meta: flush_handlers
+
+    - name: Request the certificate
+      ansible.builtin.command:
+        cmd: >-
+          certbot certonly --webroot --webroot-path /var/www/letsencrypt
+          --non-interactive --agree-tos --email {{ reverse_proxy_letsencrypt_email }}
+          --cert-name {{ reverse_proxy_site.name }}
+          {{ '--staging' if reverse_proxy_letsencrypt_staging | bool else '' }}
+          {% for name in reverse_proxy_site.server_names %}-d {{ name }} {% endfor %}
+        creates: "{{ reverse_proxy_cert_dir }}/fullchain.pem"

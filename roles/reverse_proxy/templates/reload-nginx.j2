@@ -1,0 +1,4 @@
+#!/bin/sh
+# {{ ansible_managed }}
+# Certbot deploy hook: pick up renewed certificates.
+nginx -t && systemctl reload nginx

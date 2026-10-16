@@ -1,0 +1,33 @@
+---
+argument_specs:
+  main:
+    short_description: Nginx in front of local services, with TLS
+    options:
+      reverse_proxy_sites:
+        type: list
+        elements: dict
+        description: Sites to proxy; each has name, server_names and upstream.
+      reverse_proxy_letsencrypt_enabled:
+        type: bool
+        description: Use Let's Encrypt; otherwise generate a self-signed certificate.
+      reverse_proxy_letsencrypt_email:
+        type: str
+        description: Account email for Let's Encrypt expiry notices.
+      reverse_proxy_letsencrypt_staging:
+        type: bool
+        description: Use the Let's Encrypt staging environment (testing).
+      reverse_proxy_client_max_body_size:
+        type: str
+        description: Maximum request body size.
+      reverse_proxy_rate_limit:
+        type: str
+        description: Requests per second per client IP (nginx limit_req rate).
+      reverse_proxy_rate_limit_burst:
+        type: int
+        description: Burst allowed above the rate.
+      reverse_proxy_ipv6:
+        type: bool
+        description: Listen on IPv6 as well; detected from the kernel when unset.
+      reverse_proxy_hsts_max_age:
+        type: int
+        description: HSTS max-age in seconds.

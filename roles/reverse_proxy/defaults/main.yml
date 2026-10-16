@@ -1,0 +1,20 @@
+---
+# One entry per public site, proxied to a service on localhost.
+reverse_proxy_sites: []
+#  - name: app                         # file name and certificate name
+#    server_names: [app.example.com]   # first name is the certificate's primary name
+#    upstream: http://127.0.0.1:8080
+
+# Let's Encrypt via the HTTP-01 webroot challenge. When disabled, a self-signed
+# certificate is generated so HTTPS still works (internal hosts, CI, staging).
+reverse_proxy_letsencrypt_enabled: true
+reverse_proxy_letsencrypt_email: ""
+reverse_proxy_letsencrypt_staging: false
+
+reverse_proxy_client_max_body_size: 25m
+# Per-client-IP request rate; bursts above it get HTTP 429.
+reverse_proxy_rate_limit: 20r/s
+reverse_proxy_rate_limit_burst: 40
+
+# Sent on every HTTPS response.
+reverse_proxy_hsts_max_age: 31536000

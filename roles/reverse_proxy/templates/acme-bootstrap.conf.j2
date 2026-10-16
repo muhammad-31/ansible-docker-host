@@ -1,0 +1,17 @@
+# {{ ansible_managed }}
+# Temporary: only answers the Let's Encrypt challenge until the certificate exists.
+server {
+    listen 80;
+{% if reverse_proxy_ipv6 | bool %}
+    listen [::]:80;
+{% endif %}
+    server_name {{ reverse_proxy_site.server_names | join(' ') }};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/letsencrypt;
+    }
+
+    location / {
+        return 503;
+    }
+}

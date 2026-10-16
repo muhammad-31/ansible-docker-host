@@ -1,0 +1,141 @@
+---
+- name: Validate site definitions
+  ansible.builtin.assert:
+    that:
+      - item.name is match('^[a-z0-9-]+$')
+      - item.server_names | length > 0
+      - item.upstream is match('^https?://')
+    fail_msg: "Each site needs a name (a-z0-9-), server_names and an http(s):// upstream: {{ item }}"
+    quiet: true
+  loop: "{{ reverse_proxy_sites }}"
+  loop_control:
+    label: "{{ item.name | default('?') }}"
+
+- name: Require an email for Let's Encrypt
+  ansible.builtin.assert:
+    that: reverse_proxy_letsencrypt_email | length > 0
+    fail_msg: Set reverse_proxy_letsencrypt_email (expiry notices from Let's Encrypt go there).
+    quiet: true
+  when: reverse_proxy_letsencrypt_enabled | bool
+
+- name: Check for IPv6 support
+  ansible.builtin.stat:
+    path: /proc/net/if_inet6
+  register: reverse_proxy_if_inet6
+
+- name: Listen on IPv6 only where the kernel supports it
+  ansible.builtin.set_fact:
+    reverse_proxy_ipv6: "{{ reverse_proxy_if_inet6.stat.exists }}"
+  when: reverse_proxy_ipv6 is not defined
+
+- name: Check whether Nginx is already installed
+  ansible.builtin.stat:
+    path: /usr/sbin/nginx
+  register: reverse_proxy_nginx_binary
+
+# The package starts Nginx with its default site, which listens on [::]:80 and
+# makes the install fail on hosts with IPv6 disabled. Hold the start until the
+# role has written its own configuration.
+- name: Install Nginx and Certbot
+  when: not reverse_proxy_nginx_binary.stat.exists
+  block:
+    - name: Do not start services during the install
+      ansible.builtin.copy:
+        dest: /usr/sbin/policy-rc.d
+        content: "#!/bin/sh\nexit 101\n"
+        owner: root
+        group: root
+        mode: "0755"
+
+    - name: Install packages
+      ansible.builtin.apt:
+        name: [nginx, certbot, openssl]
+        state: present
+  always:
+    - name: Allow service starts again
+      ansible.builtin.file:
+        path: /usr/sbin/policy-rc.d
+        state: absent
+
+- name: Keep Nginx and Certbot installed
+  ansible.builtin.apt:
+    name: [nginx, certbot, openssl]
+    state: present
+
+- name: Remove the default site
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Reload nginx
+
+- name: Create the ACME challenge directory
+  ansible.builtin.file:
+    path: /var/www/letsencrypt
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Main configuration (TLS settings, rate limit zone, logging)
+  ansible.builtin.template:
+    src: nginx.conf.j2
+    dest: /etc/nginx/nginx.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload nginx
+
+- name: Shared proxy and security-header snippets
+  ansible.builtin.template:
+    src: "{{ item }}.j2"
+    dest: /etc/nginx/snippets/{{ item }}
+    owner: root
+    group: root
+    mode: "0644"
+  loop: [proxy.conf, security-headers.conf]
+  notify: Reload nginx
+
+- name: Certificates
+  ansible.builtin.include_tasks: certificates.yml
+  loop: "{{ reverse_proxy_sites }}"
+  loop_control:
+    loop_var: reverse_proxy_site
+    label: "{{ reverse_proxy_site.name }}"
+
+- name: Site configuration (HTTP redirect + HTTPS proxy)
+  ansible.builtin.template:
+    src: site.conf.j2
+    dest: /etc/nginx/sites-available/{{ item.name }}.conf
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ reverse_proxy_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload nginx
+
+- name: Enable sites
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/{{ item.name }}.conf
+    dest: /etc/nginx/sites-enabled/{{ item.name }}.conf
+    state: link
+    force: true  # replaces the temporary ACME-only file on first run
+  loop: "{{ reverse_proxy_sites }}"
+  loop_control:
+    label: "{{ item.name }}"
+  notify: Reload nginx
+
+- name: Reload Nginx after certificate renewals
+  ansible.builtin.template:
+    src: reload-nginx.j2
+    dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx
+    owner: root
+    group: root
+    mode: "0755"
+  when: reverse_proxy_letsencrypt_enabled | bool
+
+- name: Keep Nginx running
+  ansible.builtin.systemd_service:
+    name: nginx
+    state: started
+    enabled: true
