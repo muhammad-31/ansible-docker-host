@@ -4,6 +4,11 @@
     name: [docker.io, docker-compose, docker-compose-v2, podman-docker, containerd, runc]
     state: absent
 
+- name: Install python3-debian (needed by deb822_repository)
+  ansible.builtin.apt:
+    name: python3-debian
+    state: present
+
 - name: Add Docker's apt repository (signed by Docker's key)
   ansible.builtin.deb822_repository:
     name: docker
