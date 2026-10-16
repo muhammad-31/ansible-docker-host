@@ -1,0 +1,46 @@
+---
+app_name: podinfo
+app_dir: "/opt/{{ app_name }}"
+
+# Image for the main service. Deploy a release with:
+#   ansible-playbook playbooks/deploy.yml -e app_image=ghcr.io/acme/shop:1.4.2
+app_image: ghcr.io/stefanprodan/podinfo:6.15.0
+
+# Contents of compose.yaml. Publish ports on 127.0.0.1 only: Docker's port
+# publishing bypasses UFW, so Nginx is the only thing that should face the internet.
+app_compose:
+  services:
+    web:
+      image: "{{ app_image }}"
+      restart: unless-stopped
+      ports:
+        - "127.0.0.1:9898:9898"
+      env_file: [.env]
+      read_only: true
+      tmpfs: [/tmp]
+      cap_drop: [ALL]
+      security_opt: ["no-new-privileges:true"]
+      healthcheck:
+        test: ["CMD", "wget", "-qO-", "http://127.0.0.1:9898/healthz"]
+        interval: 30s
+        timeout: 3s
+        retries: 3
+      deploy:
+        resources:
+          limits:
+            memory: 256M
+
+# Written to .env (mode 0600). Keep secrets in ansible-vault, not in plain vars.
+app_env:
+  PODINFO_UI_MESSAGE: "deployed with Ansible"
+
+# Pull policy on every run: always (pick up new tags) | missing | never.
+app_pull: always
+
+# Deployment is only reported as done once this URL answers with HTTP 200.
+app_healthcheck_url: http://127.0.0.1:9898/healthz
+app_healthcheck_retries: 30
+app_healthcheck_delay: 2
+
+# Set to true only if a container really must listen on a public interface.
+app_allow_public_ports: false

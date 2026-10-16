@@ -1,0 +1,37 @@
+---
+argument_specs:
+  main:
+    short_description: Deploy a Docker Compose application
+    options:
+      app_name:
+        type: str
+        description: Compose project name.
+      app_dir:
+        type: str
+        description: Directory holding compose.yaml and .env.
+      app_image:
+        type: str
+        description: Image (with tag or digest) used by the default compose file.
+      app_compose:
+        type: dict
+        required: true
+        description: Contents of compose.yaml.
+      app_env:
+        type: dict
+        description: Variables written to .env (mode 0600).
+      app_pull:
+        type: str
+        choices: [always, missing, never]
+        description: Image pull policy for each deploy.
+      app_healthcheck_url:
+        type: str
+        description: URL that must return 200 before the deploy counts as done; empty skips the check.
+      app_healthcheck_retries:
+        type: int
+        description: Health check attempts.
+      app_healthcheck_delay:
+        type: int
+        description: Seconds between attempts.
+      app_allow_public_ports:
+        type: bool
+        description: Allow ports published on all interfaces.

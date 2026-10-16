@@ -1,0 +1,63 @@
+---
+- name: Find ports published on all interfaces
+  ansible.builtin.set_fact:
+    app_public_ports: >-
+      {{ app_compose.services | dict2items
+         | map(attribute='value.ports', default=[]) | flatten
+         | map('string') | reject('match', '^127\.0\.0\.1:') | list }}
+
+- name: Refuse to publish container ports past the firewall
+  ansible.builtin.assert:
+    that: app_public_ports | length == 0 or app_allow_public_ports | bool
+    fail_msg: >-
+      These ports would be reachable from the internet even with UFW enabled
+      (Docker bypasses it): {{ app_public_ports | join(', ') }}. Bind them to
+      127.0.0.1 and route traffic through the reverse proxy, or set
+      app_allow_public_ports: true if this is intended.
+    quiet: true
+
+- name: Create the application directory
+  ansible.builtin.file:
+    path: "{{ app_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Write .env
+  ansible.builtin.template:
+    src: env.j2
+    dest: "{{ app_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Write compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ app_dir }}/compose.yaml"
+    owner: root
+    group: root
+    mode: "0640"
+    # Resolve env_file and relative paths against the real project directory.
+    validate: docker compose --project-directory {{ app_dir }} -f %s config --quiet
+
+- name: Pull images and start the stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ app_dir }}"
+    project_name: "{{ app_name }}"
+    pull: "{{ app_pull }}"
+    remove_orphans: true
+    state: present
+  register: app_compose_result
+
+- name: Wait until the application is healthy
+  ansible.builtin.uri:
+    url: "{{ app_healthcheck_url }}"
+    status_code: 200
+  register: app_health
+  until: app_health.status == 200
+  retries: "{{ app_healthcheck_retries }}"
+  delay: "{{ app_healthcheck_delay }}"
+  when: app_healthcheck_url | length > 0
