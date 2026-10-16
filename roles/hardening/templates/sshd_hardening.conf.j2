@@ -1,0 +1,23 @@
+# {{ ansible_managed }}
+Port {{ hardening_ssh_port }}
+
+# Keys only, no root, named users only.
+PermitRootLogin no
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+AllowUsers {{ hardening_ssh_allow_users | join(' ') }}
+
+# Slow down guessing and drop idle sessions.
+MaxAuthTries 3
+LoginGraceTime 30
+ClientAliveInterval 300
+ClientAliveCountMax 2
+
+# Nothing this server needs.
+X11Forwarding no
+AllowAgentForwarding no
+AllowTcpForwarding no
+PermitTunnel no

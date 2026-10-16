@@ -1,0 +1,44 @@
+---
+- name: Refuse to lock everyone out
+  ansible.builtin.assert:
+    that:
+      - hardening_admin_ssh_keys | length > 0
+    fail_msg: >-
+      hardening_admin_ssh_keys is empty. Password login is about to be disabled,
+      so add at least one public key for {{ hardening_admin_user }} first.
+    quiet: true
+
+- name: Install security packages
+  ansible.builtin.apt:
+    name:
+      - openssh-server
+      - ufw
+      - fail2ban
+      - sudo
+    state: present
+
+- name: Admin user
+  ansible.builtin.include_tasks: admin_user.yml
+
+- name: SSH daemon
+  ansible.builtin.include_tasks: ssh.yml
+
+- name: Firewall
+  ansible.builtin.include_tasks: firewall.yml
+  when: hardening_firewall_enabled | bool
+
+- name: Fail2ban
+  ansible.builtin.include_tasks: fail2ban.yml
+  when: hardening_fail2ban_enabled | bool
+
+- name: Kernel network hardening
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/90-hardening.conf
+    reload: true
+    state: present
+  loop: "{{ hardening_sysctl_settings | dict2items }}"
+  loop_control:
+    label: "{{ item.key }}={{ item.value }}"
+  when: hardening_sysctl_enabled | bool

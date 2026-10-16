@@ -1,0 +1,27 @@
+---
+- name: Create the admin user
+  ansible.builtin.user:
+    name: "{{ hardening_admin_user }}"
+    shell: /bin/bash
+    groups: [sudo]
+    append: true
+    create_home: true
+    password: "!"
+    update_password: on_create
+
+- name: Install the admin user's SSH keys (only these keys are allowed)
+  ansible.posix.authorized_key:
+    user: "{{ hardening_admin_user }}"
+    key: "{{ hardening_admin_ssh_keys | join('\n') }}"
+    exclusive: true
+    state: present
+
+- name: Passwordless sudo for the admin user
+  ansible.builtin.template:
+    src: sudoers.j2
+    dest: /etc/sudoers.d/90-{{ hardening_admin_user }}
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
+  when: hardening_admin_passwordless_sudo | bool

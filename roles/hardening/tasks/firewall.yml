@@ -1,0 +1,31 @@
+---
+# Note: ports *published* by Docker (`-p 8080:80`) bypass UFW, because Docker
+# writes its own iptables rules. The app role therefore binds containers to
+# 127.0.0.1 and only Nginx (80/443) faces the internet.
+- name: Deny incoming traffic by default
+  community.general.ufw:
+    direction: incoming
+    default: deny
+
+- name: Allow outgoing traffic by default
+  community.general.ufw:
+    direction: outgoing
+    default: allow
+
+- name: Allow SSH with rate limiting (6 connections per 30s per IP)
+  community.general.ufw:
+    rule: limit
+    port: "{{ hardening_ssh_port | string }}"
+    proto: tcp
+    comment: ssh
+
+- name: Allow public TCP ports
+  community.general.ufw:
+    rule: allow
+    port: "{{ item | string }}"
+    proto: tcp
+  loop: "{{ hardening_firewall_allowed_tcp_ports }}"
+
+- name: Enable the firewall
+  community.general.ufw:
+    state: enabled

@@ -1,0 +1,38 @@
+---
+# Admin account used for SSH; root login is disabled.
+hardening_admin_user: deploy
+# Public keys allowed to log in as the admin user. Required: the role refuses
+# to disable password login if this list is empty (lock-out protection).
+hardening_admin_ssh_keys: []
+hardening_admin_passwordless_sudo: true
+
+hardening_ssh_port: 22
+hardening_ssh_allow_users:
+  - "{{ hardening_admin_user }}"
+
+hardening_firewall_enabled: true
+# Ports open to the internet in addition to SSH.
+hardening_firewall_allowed_tcp_ports:
+  - 80
+  - 443
+
+hardening_fail2ban_enabled: true
+hardening_fail2ban_maxretry: 5
+hardening_fail2ban_findtime: 10m
+hardening_fail2ban_bantime: 1h
+
+hardening_sysctl_enabled: true
+hardening_sysctl_settings:
+  net.ipv4.conf.all.accept_redirects: 0
+  net.ipv4.conf.default.accept_redirects: 0
+  net.ipv4.conf.all.send_redirects: 0
+  net.ipv4.conf.all.accept_source_route: 0
+  net.ipv4.conf.all.rp_filter: 1
+  net.ipv4.conf.all.log_martians: 1
+  net.ipv4.icmp_echo_ignore_broadcasts: 1
+  net.ipv4.tcp_syncookies: 1
+  net.ipv6.conf.all.accept_redirects: 0
+  kernel.kptr_restrict: 2
+  kernel.dmesg_restrict: 1
+  fs.protected_hardlinks: 1
+  fs.protected_symlinks: 1

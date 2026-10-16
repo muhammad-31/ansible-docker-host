@@ -1,0 +1,48 @@
+---
+argument_specs:
+  main:
+    short_description: SSH, firewall and kernel hardening
+    options:
+      hardening_admin_user:
+        type: str
+        description: Non-root account used for SSH and sudo.
+      hardening_admin_ssh_keys:
+        type: list
+        elements: str
+        required: true
+        description: Public keys allowed to log in as the admin user.
+      hardening_admin_passwordless_sudo:
+        type: bool
+        description: Grant passwordless sudo to the admin user.
+      hardening_ssh_port:
+        type: int
+        description: SSH port.
+      hardening_ssh_allow_users:
+        type: list
+        elements: str
+        description: Users allowed to log in over SSH.
+      hardening_firewall_enabled:
+        type: bool
+        description: Manage and enable UFW.
+      hardening_firewall_allowed_tcp_ports:
+        type: list
+        elements: int
+        description: TCP ports open to the internet besides SSH.
+      hardening_fail2ban_enabled:
+        type: bool
+        description: Install and configure fail2ban.
+      hardening_fail2ban_maxretry:
+        type: int
+        description: Failures before a ban.
+      hardening_fail2ban_findtime:
+        type: str
+        description: Window in which failures are counted.
+      hardening_fail2ban_bantime:
+        type: str
+        description: Ban duration.
+      hardening_sysctl_enabled:
+        type: bool
+        description: Apply hardening_sysctl_settings.
+      hardening_sysctl_settings:
+        type: dict
+        description: sysctl name/value pairs written to /etc/sysctl.d/90-hardening.conf.
