@@ -12,6 +12,9 @@ driver:
 
 platforms:
   - name: docker-host
+    # The test harness image is rebuilt with current Ubuntu 24.04 packages and
+    # only published as :latest, which is what we want to test against. For a
+    # reproducible run, pin it: MOLECULE_IMAGE=geerlingguy/...@sha256:<digest>
     image: "${MOLECULE_IMAGE:-geerlingguy/docker-ubuntu2404-ansible:latest}"
     pre_build_image: true
     privileged: true

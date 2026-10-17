@@ -60,9 +60,17 @@ missing variable fails with a clear message before anything changes.
 make setup                                   # Python tooling + Ansible collections
 cp -r inventories/example inventories/prod   # then edit hosts.yml and group_vars
 ansible-vault encrypt_string --name vault_backups_restic_password 'long-random-password'
-make check ENV=prod                          # dry run with diffs
-make apply ENV=prod                          # build the server
+                                             # paste the output into group_vars/docker_hosts.yml
+make apply ENV=prod SSH_USER=ubuntu          # first run: the image's default user
+make check ENV=prod                          # from now on: dry run with diffs, as deploy
+make apply ENV=prod
 ```
+
+The first run has to connect as the user the server came with (`ubuntu` on
+AWS Ubuntu images, `root` on most VPS providers), because it is what creates
+the `deploy` admin user. It also restricts SSH to `deploy` (`AllowUsers`), so
+afterwards only `deploy` can log in; add the original user to
+`hardening_ssh_allow_users` if you want to keep it.
 
 Minimum variables (see [`inventories/example/group_vars`](inventories/example/group_vars/docker_hosts.yml)):
 

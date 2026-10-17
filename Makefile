@@ -35,11 +35,11 @@ destroy: ## Remove the test server
 
 .PHONY: check
 check: ## Dry run against real hosts, showing diffs
-	ansible-playbook playbooks/site.yml -i inventories/$(ENV)/hosts.yml --check --diff --ask-vault-pass
+	ansible-playbook playbooks/site.yml -i inventories/$(ENV)/hosts.yml --check --diff --ask-vault-pass $(if $(SSH_USER),-u $(SSH_USER))
 
 .PHONY: apply
 apply: ## Configure real hosts
-	ansible-playbook playbooks/site.yml -i inventories/$(ENV)/hosts.yml --ask-vault-pass
+	ansible-playbook playbooks/site.yml -i inventories/$(ENV)/hosts.yml --ask-vault-pass $(if $(SSH_USER),-u $(SSH_USER))
 
 .PHONY: deploy
 deploy: ## Release the app only, e.g. make deploy IMAGE=ghcr.io/acme/shop:1.4.2

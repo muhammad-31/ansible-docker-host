@@ -19,5 +19,6 @@ reverse_proxy_sites:
 reverse_proxy_letsencrypt_email: ops@example.com
 
 backups_restic_repository: "s3:https://s3.amazonaws.com/example-backups/{{ inventory_hostname }}"
-# ansible-vault encrypt_string --name backups_restic_password
+# Create the vaulted value and paste the output into this file:
+#   ansible-vault encrypt_string --name vault_backups_restic_password 'long-random-password'
 backups_restic_password: "{{ vault_backups_restic_password }}"
